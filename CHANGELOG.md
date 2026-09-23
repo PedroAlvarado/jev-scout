@@ -1,5 +1,9 @@
 # Changelog
 
+## Unreleased
+
+- The `eval` workflow can reach Claude through OpenRouter: with an `OPENROUTER_API_KEY` secret it uses OpenRouter's Anthropic-compatible endpoint and model names, and checks the key's credit limit before any paid run. `ANTHROPIC_API_KEY` still works for calling Anthropic directly.
+
 ## 0.2.1 - 2026-09-23
 
 Changes from an audit against the prompting guidance for Claude Opus 5.5 and current Claude models.

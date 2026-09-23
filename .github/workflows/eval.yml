@@ -3,7 +3,8 @@ name: eval
 # Runs the `claude plugin eval` suite (evals/*/case.yaml) on a clean Linux runner with
 # Bash granted, so the skill's scanner and git history are exercised, several runs per
 # case, and pinned models. Manual only: every run and every judge grader is a paid model
-# call on the ANTHROPIC_API_KEY secret.
+# call. Claude models are reached through OpenRouter when the OPENROUTER_API_KEY secret
+# is set, otherwise directly with the ANTHROPIC_API_KEY secret.
 
 on:
   workflow_dispatch:
@@ -15,11 +16,11 @@ on:
         description: Case name glob; empty runs every case
         default: ""
       model:
-        description: Model for the agent under test, pinned so scores stay comparable
-        default: claude-opus-5-5
+        description: Model for the agent under test; empty picks Claude Opus 5.5 in the provider's naming
+        default: ""
       judge_model:
-        description: Model for the llm graders
-        default: claude-haiku-4-5
+        description: Model for the llm graders; empty picks Claude Haiku 4.5 in the provider's naming
+        default: ""
       max_cost_usd:
         description: Hard cost ceiling for the whole run
         default: "20"
@@ -43,12 +44,24 @@ jobs:
     runs-on: ubuntu-24.04
     timeout-minutes: 150
     steps:
-      - name: Require the API key secret
+      - name: Check the model-provider secret
         env:
+          OPENROUTER_API_KEY: ${{ secrets.OPENROUTER_API_KEY }}
           ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
         run: |
-          if [ -z "$ANTHROPIC_API_KEY" ]; then
-            echo "::error::Add an ANTHROPIC_API_KEY repository secret before running evals (see evals/README.md)."
+          if [ -n "$OPENROUTER_API_KEY" ]; then
+            # Free call: confirms the key works and shows its credit limit before any paid run.
+            key=$(curl -sS --fail -H "Authorization: Bearer $OPENROUTER_API_KEY" https://openrouter.ai/api/v1/key) \
+              || { echo "::error::OpenRouter rejected the OPENROUTER_API_KEY secret."; exit 1; }
+            limit=$(echo "$key" | jq -r '(.data // .).limit // "none"')
+            remaining=$(echo "$key" | jq -r '(.data // .).limit_remaining // "unlimited"')
+            echo "OpenRouter key: credit limit $limit, remaining $remaining"
+            echo "OpenRouter key credit limit: $limit, remaining: $remaining." >> "$GITHUB_STEP_SUMMARY"
+            if [ "$limit" = "none" ]; then
+              echo "::warning::This OpenRouter key has no credit limit. The eval's --max-cost-usd is a list-price estimate; set a limit on the key to cap real spend."
+            fi
+          elif [ -z "$ANTHROPIC_API_KEY" ]; then
+            echo "::error::Add an OPENROUTER_API_KEY or ANTHROPIC_API_KEY repository secret before running evals (see evals/README.md)."
             exit 1
           fi
 
@@ -91,6 +104,7 @@ jobs:
 
       - name: Run the eval suite
         env:
+          OPENROUTER_API_KEY: ${{ secrets.OPENROUTER_API_KEY }}
           ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
           TMPDIR: ${{ runner.temp }}/eval
           RUNS: ${{ inputs.runs }}
@@ -100,6 +114,22 @@ jobs:
           MAX_COST_USD: ${{ inputs.max_cost_usd }}
           THRESHOLD: ${{ inputs.threshold }}
         run: |
+          if [ -n "$OPENROUTER_API_KEY" ]; then
+            # OpenRouter's Anthropic-compatible endpoint: the key goes in ANTHROPIC_AUTH_TOKEN
+            # (sent as a bearer token) and ANTHROPIC_API_KEY must be empty.
+            export ANTHROPIC_BASE_URL="https://openrouter.ai/api"
+            export ANTHROPIC_AUTH_TOKEN="$OPENROUTER_API_KEY"
+            export ANTHROPIC_API_KEY=""
+            MODEL="${MODEL:-anthropic/claude-opus-5.5}"
+            JUDGE_MODEL="${JUDGE_MODEL:-anthropic/claude-haiku-4.5}"
+            provider="OpenRouter"
+          else
+            MODEL="${MODEL:-claude-opus-5-5}"
+            JUDGE_MODEL="${JUDGE_MODEL:-claude-haiku-4-5}"
+            provider="Anthropic"
+          fi
+          unset OPENROUTER_API_KEY
+          { echo "PROVIDER=$provider"; echo "RESOLVED_MODEL=$MODEL"; echo "RESOLVED_JUDGE_MODEL=$JUDGE_MODEL"; } >> "$GITHUB_ENV"
           mkdir -p "$TMPDIR" evals/results
           args=(
             .
@@ -124,14 +154,12 @@ jobs:
         if: always()
         env:
           RUNS: ${{ inputs.runs }}
-          MODEL: ${{ inputs.model }}
-          JUDGE_MODEL: ${{ inputs.judge_model }}
         run: |
           if [ -f evals/results/ci.json ]; then
             {
               echo "## Jev Scout eval"
               echo
-              echo "Agent model \`$MODEL\`, judge \`$JUDGE_MODEL\`, $RUNS runs per case and arm, Claude Code $CLAUDE_CODE_VERSION."
+              echo "Provider $PROVIDER, agent model \`$RESOLVED_MODEL\`, judge \`$RESOLVED_JUDGE_MODEL\`, $RUNS runs per case and arm, Claude Code $CLAUDE_CODE_VERSION."
               echo
               node evals/summarize.mjs evals/results/ci.json
             } >> "$GITHUB_STEP_SUMMARY"

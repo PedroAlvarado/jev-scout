@@ -16,11 +16,18 @@ node --test evals/scanner.test.mjs      # Node.js 22.6 or later
 
 The [`eval` workflow](../.github/workflows/eval.yml) runs the suite on a clean Ubuntu runner with Bash granted, so the skill's scanner and git history are exercised. It pins the Claude Code version, the agent model and the judge model so scores stay comparable, runs each case three times per arm by default, installs and tests the sandbox before any model call is paid for, stops at a cost ceiling, and fails when a case scores below the threshold. The job summary shows each case's score with and without the skill and every grader's pass count; the JSON result, the HTML report and each run's transcript are uploaded as an artifact.
 
-It runs only when started by hand, because every run is a paid model call. Once, add an Anthropic API key as a repository secret:
+It runs only when started by hand, because every run is a paid model call. Once, add a repository secret for the model provider. Through [OpenRouter](https://openrouter.ai/docs/cookbook/coding-agents/claude-code-integration):
 
 ```bash
-gh secret set ANTHROPIC_API_KEY -R PedroAlvarado/jev-scout
+gh secret set OPENROUTER_API_KEY -R PedroAlvarado/jev-scout
 ```
+
+The workflow then points Claude Code at OpenRouter's Anthropic-compatible endpoint (`ANTHROPIC_BASE_URL=https://openrouter.ai/api`, the key in `ANTHROPIC_AUTH_TOKEN`, `ANTHROPIC_API_KEY` empty) and names the models the OpenRouter way (`anthropic/claude-opus-5.5`, `anthropic/claude-haiku-4.5`). Two settings on the OpenRouter side matter:
+
+- **A credit limit on the key.** The eval's `--max-cost-usd` is a list-price estimate made by Claude Code, so the key's limit is the real ceiling. The workflow reads the key's limit and remaining credit (a free call) before any paid run, and warns when there is no limit.
+- **Anthropic as the first provider** in the account's provider preferences. OpenRouter only guarantees Claude Code with Anthropic's own endpoint, and one provider keeps runs comparable.
+
+To call Anthropic directly instead, set `ANTHROPIC_API_KEY`; when both secrets exist, OpenRouter is used.
 
 Then start a run, from the Actions tab or the command line:
 
@@ -29,7 +36,7 @@ gh workflow run eval.yml -R PedroAlvarado/jev-scout -f runs=3
 gh run watch -R PedroAlvarado/jev-scout
 ```
 
-Inputs: `runs`, `case` (a name glob), `model`, `judge_model`, `max_cost_usd` and `threshold`. Three runs of both cases, with the no-plugin baseline, cost roughly $5-10 at the default models; set `max_cost_usd` to what you are willing to spend.
+Inputs: `runs`, `case` (a name glob), `model` and `judge_model` (empty picks Claude Opus 5.5 and Claude Haiku 4.5 in the provider's naming), `max_cost_usd` and `threshold`. Three runs of both cases, with the no-plugin baseline, cost roughly $5-10 at the default models; set `max_cost_usd` to what you are willing to spend.
 
 ### On your machine
 
