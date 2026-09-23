@@ -71,7 +71,7 @@ A Jev Opportunity Map (the full template is in [`references/output-template.md`]
 - every anchored new-capability idea, plus unanchored ideas to explore
 - a "Not a Jev fit" section, incidental findings (never filed anywhere), measurements to collect, a recommended first move, and coverage notes
 
-Priority numbers are a ranking aid, not measured return on investment. Where the repository has no baseline (traffic, cost, latency), the skill lists it as something to measure.
+The ranking is a judgment about where to look first, with each rank's reasons stated; it is not measured return on investment. Where the repository has no baseline (traffic, cost, latency), the skill lists it as something to measure.
 
 ## Requirements
 
@@ -88,7 +88,7 @@ It scans the files git knows about (respecting `.gitignore`), and skips dependen
 
 ## Evals
 
-[`evals/`](evals/README.md) holds two small fixture repositories with planted opportunities of each kind and a git history. `node --test evals/scanner.test.mjs` checks the scanner against them (it runs in CI), and each fixture is also a [`claude plugin eval`](https://code.claude.com/docs/en/plugin-evals) case that grades a full run of the skill against a no-plugin baseline.
+[`evals/`](evals/README.md) holds two small fixture repositories with planted opportunities of each kind and a git history. `node --test evals/scanner.test.mjs` checks the scanner against them (it runs in CI), and each fixture is also a [`claude plugin eval`](https://code.claude.com/docs/en/plugin-evals) case that grades a full run of the skill against a no-plugin baseline. The manual `eval` GitHub workflow runs that suite on a clean runner with pinned models and several runs per case.
 
 ## Repository layout
 

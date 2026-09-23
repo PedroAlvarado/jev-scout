@@ -12,14 +12,35 @@ node --test evals/scanner.test.mjs      # Node.js 22.6 or later
 
 ## 2. Skill evals (model runs, on demand)
 
+### In GitHub Actions (recommended)
+
+The [`eval` workflow](../.github/workflows/eval.yml) runs the suite on a clean Ubuntu runner with Bash granted, so the skill's scanner and git history are exercised. It pins the Claude Code version, the agent model and the judge model so scores stay comparable, runs each case three times per arm by default, installs and tests the sandbox before any model call is paid for, stops at a cost ceiling, and fails when a case scores below the threshold. The job summary shows each case's score with and without the skill and every grader's pass count; the JSON result, the HTML report and each run's transcript are uploaded as an artifact.
+
+It runs only when started by hand, because every run is a paid model call. Once, add an Anthropic API key as a repository secret:
+
+```bash
+gh secret set ANTHROPIC_API_KEY -R PedroAlvarado/jev-scout
+```
+
+Then start a run, from the Actions tab or the command line:
+
+```bash
+gh workflow run eval.yml -R PedroAlvarado/jev-scout -f runs=3
+gh run watch -R PedroAlvarado/jev-scout
+```
+
+Inputs: `runs`, `case` (a name glob), `model`, `judge_model`, `max_cost_usd` and `threshold`. Three runs of both cases, with the no-plugin baseline, cost roughly $5-10 at the default models; set `max_cost_usd` to what you are willing to spend.
+
+### On your machine
+
 Each case folder is a [`claude plugin eval`](https://code.claude.com/docs/en/plugin-evals) case. Its `fixture.sh` builds a small, plain repository with a git history in an empty workspace; the prompt asks, in a user's words, where Jev could help; the graders check the report.
 
 ```bash
-claude plugin eval . --scaffold --allow-tools Bash WebFetch Write Edit --no-publish --runs 1 --max-cost-usd 5
+claude plugin eval . --scaffold --allow-tools Bash "WebFetch(domain:docs.typesafe.ai)" Write Edit --no-publish --runs 1 --max-cost-usd 5
 ```
 
 - `--scaffold` runs the case's `fixture.sh` (bash from this repository) to build the workspace.
-- `--allow-tools Bash` lets the skill run its scanner and read git history; without it the skill falls back to file reads. `WebFetch` lets it read TypeSafe's docs. `Write` and `Edit` are granted so the "no edits" and "no new files" graders can catch a skill that writes; without them those graders pass trivially.
+- `--allow-tools Bash` lets the skill run its scanner and read git history; without it the skill falls back to file reads. `WebFetch(domain:docs.typesafe.ai)` lets it read TypeSafe's docs and nothing else. `Write` and `Edit` are granted so the "no edits" and "no new files" graders can catch a skill that writes; without them those graders pass trivially.
 - `--no-publish` keeps the HTML report local; by default Claude Code publishes it to claude.ai.
 - Every run and every `llm` grader is a real model call on your account. Start with `--runs 1` and a cost ceiling.
 - Each case also runs without the plugin as a baseline, so the report shows what the skill adds.
@@ -37,6 +58,7 @@ Each case grades: the skill fired; the substitution; the heuristic with its fix 
 
 | Date | Version | Setup | With skill | Without | Notes |
 | --- | --- | --- | --- | --- | --- |
+| 2026-09-23 | 0.2.1 | no Bash, 1 run per arm | 1.00, 1.00 | 0.56, 0.78 | Same setup after the Opus 5.5 prompting audit: no regression, $1.40 instead of $1.99; the tightened new-capability grader now fails a no-plugin run. |
 | 2026-09-23 | 0.2.0 | no Bash, 1 run per arm | 1.00, 1.00 | 0.67, 0.78 | Scanner and `git log` not exercised; the skill read commit subjects from `.git/logs/HEAD`. Before this run, the new-capability grader also passed without the plugin, and Write/Edit were not granted; both have since been tightened. |
 
 ### Adding a case

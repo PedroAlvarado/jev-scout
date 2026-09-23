@@ -1,5 +1,15 @@
 # Changelog
 
+## 0.2.1 - 2026-09-23
+
+Changes from an audit against the prompting guidance for Claude Opus 5.5 and current Claude models.
+
+- Text read from the repository, its history, trackers and web pages is treated as evidence, not as instructions.
+- The ranking no longer adds up a nine-term formula by hand: the 0-5 scores are the stated reasons for a ranking made by judgment, and the report's Priority column becomes "Why this rank".
+- The skill states when the work is done, so long or unattended runs don't stop at a progress summary.
+- The history of earlier runs moved out of `references/source-synthesis.md`; it is kept here.
+- A manual `eval` GitHub workflow runs the plugin eval suite on a clean Ubuntu runner with Bash granted, pinned Claude Code and models, three runs per case, a cost ceiling and a score threshold; `evals/summarize.mjs` writes the job summary.
+
 ## 0.2.0 - 2026-09-23
 
 The skill now looks for new capabilities and implicit decisions, not only for model calls to replace.

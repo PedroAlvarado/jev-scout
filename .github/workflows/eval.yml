@@ -1,0 +1,150 @@
+name: eval
+
+# Runs the `claude plugin eval` suite (evals/*/case.yaml) on a clean Linux runner with
+# Bash granted, so the skill's scanner and git history are exercised, several runs per
+# case, and pinned models. Manual only: every run and every judge grader is a paid model
+# call on the ANTHROPIC_API_KEY secret.
+
+on:
+  workflow_dispatch:
+    inputs:
+      runs:
+        description: Runs per case and arm; more runs give steadier scores
+        default: "3"
+      case:
+        description: Case name glob; empty runs every case
+        default: ""
+      model:
+        description: Model for the agent under test, pinned so scores stay comparable
+        default: claude-opus-5-5
+      judge_model:
+        description: Model for the llm graders
+        default: claude-haiku-4-5
+      max_cost_usd:
+        description: Hard cost ceiling for the whole run
+        default: "20"
+      threshold:
+        description: Lowest acceptable case score, from 0 to 1
+        default: "0.8"
+
+permissions:
+  contents: read
+
+concurrency:
+  group: eval
+  cancel-in-progress: false
+
+env:
+  # Pinned so a Claude Code release is never mistaken for a change in the skill.
+  CLAUDE_CODE_VERSION: "2.1.280"
+
+jobs:
+  eval:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 150
+    steps:
+      - name: Require the API key secret
+        env:
+          ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+        run: |
+          if [ -z "$ANTHROPIC_API_KEY" ]; then
+            echo "::error::Add an ANTHROPIC_API_KEY repository secret before running evals (see evals/README.md)."
+            exit 1
+          fi
+
+      - uses: actions/checkout@v7
+
+      - uses: actions/setup-node@v7
+        with:
+          node-version: "24"
+
+      - name: Set up the sandbox that Bash-granting runs require
+        run: |
+          sudo apt-get update -q
+          sudo apt-get install -y -q bubblewrap socat
+          # Ubuntu 24.04 stops unprivileged user namespaces by default; bubblewrap needs them.
+          if [ "$(sysctl -n kernel.apparmor_restrict_unprivileged_userns 2>/dev/null)" = "1" ]; then
+            sudo tee /etc/apparmor.d/bwrap > /dev/null <<'EOF'
+          abi <abi/4.0>,
+          include <tunables/global>
+
+          profile bwrap /usr/bin/bwrap flags=(unconfined) {
+            userns,
+            include if exists <local/bwrap>
+          }
+          EOF
+            sudo systemctl reload apparmor
+          fi
+          # A Bash-granting eval refuses to start while the Docker credential folder holds
+          # symbolic links. This runner has no Docker credentials, so move such a folder aside.
+          if [ -d "$HOME/.docker" ] && [ -n "$(find "$HOME/.docker" -type l -print -quit)" ]; then
+            mv "$HOME/.docker" "$RUNNER_TEMP/docker-config-moved"
+          fi
+          # Fail here, before any model call is paid for, if the sandbox cannot start.
+          bwrap --ro-bind / / --dev /dev --unshare-user true
+          echo "bubblewrap can create a sandbox"
+
+      - name: Install Claude Code
+        run: |
+          npm install -g "@anthropic-ai/claude-code@${CLAUDE_CODE_VERSION}"
+          claude --version
+
+      - name: Run the eval suite
+        env:
+          ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+          TMPDIR: ${{ runner.temp }}/eval
+          RUNS: ${{ inputs.runs }}
+          CASE: ${{ inputs.case }}
+          MODEL: ${{ inputs.model }}
+          JUDGE_MODEL: ${{ inputs.judge_model }}
+          MAX_COST_USD: ${{ inputs.max_cost_usd }}
+          THRESHOLD: ${{ inputs.threshold }}
+        run: |
+          mkdir -p "$TMPDIR" evals/results
+          args=(
+            .
+            --scaffold
+            --allow-tools Bash "WebFetch(domain:docs.typesafe.ai)" Write Edit
+            --trust-plugin
+            --no-publish
+            --keep-temp
+            --runs "$RUNS"
+            -j 4
+            --model "$MODEL"
+            --judge-model "$JUDGE_MODEL"
+            --max-cost-usd "$MAX_COST_USD"
+            --threshold "$THRESHOLD"
+            --json evals/results/ci.json
+            --report evals/results/ci.html
+          )
+          if [ -n "$CASE" ]; then args+=(--case "$CASE"); fi
+          claude plugin eval "${args[@]}"
+
+      - name: Summarize
+        if: always()
+        env:
+          RUNS: ${{ inputs.runs }}
+          MODEL: ${{ inputs.model }}
+          JUDGE_MODEL: ${{ inputs.judge_model }}
+        run: |
+          if [ -f evals/results/ci.json ]; then
+            {
+              echo "## Jev Scout eval"
+              echo
+              echo "Agent model \`$MODEL\`, judge \`$JUDGE_MODEL\`, $RUNS runs per case and arm, Claude Code $CLAUDE_CODE_VERSION."
+              echo
+              node evals/summarize.mjs evals/results/ci.json
+            } >> "$GITHUB_STEP_SUMMARY"
+          else
+            echo "No results were written; see the Run the eval suite step." >> "$GITHUB_STEP_SUMMARY"
+          fi
+
+      - uses: actions/upload-artifact@v7
+        if: always()
+        with:
+          name: eval-results-${{ github.run_id }}
+          path: |
+            evals/results/
+            ${{ runner.temp }}/eval/
+          if-no-files-found: ignore
+          retention-days: 30
