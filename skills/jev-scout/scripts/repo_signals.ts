@@ -5,6 +5,8 @@
  * This is intentionally heuristic. It surfaces candidate files and lines for an
  * agent to inspect; it does not decide whether Jev is appropriate or estimate ROI.
  * It has no third-party dependencies and never sends repository data anywhere.
+ * Directories holding a SKILL.md (this skill and any other installed agent
+ * skill) are skipped: they describe AI behavior, so they would outrank real code.
  *
  * Runtime options:
  *   bun repo_signals.ts --root . --format markdown
@@ -172,6 +174,7 @@ function listTextFiles(root: string, maxFiles: number, maxBytes: number): string
     } catch {
       continue;
     }
+    if (dir !== root && entries.some((entry) => entry.isFile() && entry.name === "SKILL.md")) continue;
 
     for (const entry of entries) {
       if (files.length >= maxFiles) break;

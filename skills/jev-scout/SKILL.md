@@ -1,9 +1,11 @@
 ---
-name: jev-opportunity-mapper
+name: jev-scout
 description: Inspect the current local software repository and propose the highest-business-value opportunities to apply TypeSafe Jev decision models. Use when asked to "Jevify" a codebase, find Jev use cases, replace repeated semantic LLM judgments, reduce AI cost or latency, add fast typed routing/scoring/checking, improve agent/retrieval workflows, or discover new product capabilities enabled by frequent inexpensive decisions. Produce repo-grounded opportunities, ranked business cases, Jev Choice/Noul/Score decision contracts, integration points, fallbacks, and a shadow-mode experiment. Default to analysis and proposals rather than editing code unless implementation is explicitly requested.
+license: MIT
+compatibility: Any Agent Skills host with shell and file access. The bundled scanner runs on Bun or Node.js 22.6+ when one is already installed; without either, the skill falls back to rg and git grep. Discovery needs no network access and no Jev API key.
 ---
 
-# Jev Opportunity Mapper
+# Jev Scout
 
 Find where Jev can create material product or business leverage in the current local repository the coding agent is operating in. Work from actual repo evidence, not a generic Jev use-case list. Keep the workflow host-neutral so the same skill works in Claude Code, Codex, and other Agent Skills-compatible coding agents.
 
@@ -71,7 +73,7 @@ If the host does not expose the loaded skill path directly, locate this skill's 
 
 If none of those runtimes are already available, do not block the analysis. Fall back to normal repository tools such as `rg`, `git grep`, file reads, and symbol navigation using the hotspot patterns below.
 
-Use `--format json` if you want machine-readable output. The scanner has no third-party dependencies and is a lead generator, not proof. It looks for places likely to contain repeated semantic decisions, LLM routing, retrieval, scoring, moderation/verification, agent loops, and brittle keyword heuristics across TypeScript, JavaScript, Python, Go, Rust, Java, and other common source formats.
+Use `--format json` if you want machine-readable output. The scanner has no third-party dependencies and is a lead generator, not proof. It looks for places likely to contain repeated semantic decisions, LLM routing, retrieval, scoring, moderation/verification, agent loops, and brittle keyword heuristics across TypeScript, JavaScript, Python, Go, Rust, Java, and other common source formats. It skips dependency and build directories and every directory that holds a `SKILL.md`, so installed agent skills, including this one, never show up as candidates; exclude them yourself when you fall back to `rg` or `git grep`.
 
 Then use normal repo tools (`rg`, `git grep`, file reads, symbol navigation) to investigate the strongest signals. Prefer concrete call sites and control-flow boundaries over comments that merely mention AI concepts.
 

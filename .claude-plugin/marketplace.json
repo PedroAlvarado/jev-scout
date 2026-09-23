@@ -1,0 +1,15 @@
+{
+  "name": "jev-scout",
+  "description": "Jev Scout: find where TypeSafe Jev decision models would pay off in a codebase.",
+  "owner": {
+    "name": "Pedro Alvarado",
+    "url": "https://github.com/PedroAlvarado"
+  },
+  "plugins": [
+    {
+      "name": "jev-scout",
+      "description": "Reads a repository and ranks where fast, typed Jev judgments would pay off, with decision contracts and a shadow-mode experiment for each.",
+      "source": "./"
+    }
+  ]
+}

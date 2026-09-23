@@ -2,16 +2,29 @@
 
 This skill is designed as one portable Agent Skills folder. Runtime behavior lives in `SKILL.md`, `scripts/`, and `references/`; no provider-specific feature is required.
 
-## Project-local installation
+## Installation
 
-Use the host's normal project-local skills directory and keep the folder name unchanged:
+The published source is https://github.com/PedroAlvarado/jev-scout, with the skill at `skills/jev-scout/`.
 
-```text
-Claude Code: .claude/skills/jev-opportunity-mapper/
-Codex:       .agents/skills/jev-opportunity-mapper/
+```bash
+# Any Agent Skills host (Claude Code, Codex, Cursor, ...): project-local by default, -g for user-wide
+npx skills add PedroAlvarado/jev-scout
+
+# Claude Code plugin
+claude plugin marketplace add PedroAlvarado/jev-scout
+claude plugin install jev-scout@jev-scout
 ```
 
-The contents inside `jev-opportunity-mapper/` must be identical in both locations. Do not rewrite `SKILL.md` or `scripts/repo_signals.ts` per host.
+A manual install copies `skills/jev-scout/` into the host's project-local skills directory and keeps the folder name unchanged:
+
+```text
+Claude Code: .claude/skills/jev-scout/
+Codex:       .agents/skills/jev-scout/
+```
+
+The contents inside `jev-scout/` must be identical in both locations. Do not rewrite `SKILL.md` or `scripts/repo_signals.ts` per host.
+
+A project-local install puts this skill inside the repository it analyzes. The scanner skips every directory that holds a `SKILL.md`, so installed skills never appear as candidates.
 
 ## Runtime rules
 

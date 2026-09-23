@@ -1,3 +1,0 @@
-interface:
-  display_name: "Jev Opportunity Mapper"
-  short_description: "Find and rank high-value Jev decision opportunities in a codebase"

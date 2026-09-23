@@ -1,0 +1,51 @@
+name: validate
+
+on:
+  push:
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  skill:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+
+      - name: Skill follows the Agent Skills spec
+        run: pipx run --spec skills-ref agentskills validate skills/jev-scout
+
+      - name: Manifests parse and name the same plugin
+        run: |
+          jq -e '.name == "jev-scout" and (.version | test("^[0-9]+\\.[0-9]+\\.[0-9]+$"))' .claude-plugin/plugin.json
+          jq -e '.plugins | length == 1 and .[0].name == "jev-scout" and .[0].source == "./"' .claude-plugin/marketplace.json
+
+      - name: The skill folder carries the same license as the repository
+        run: cmp LICENSE skills/jev-scout/LICENSE
+
+  scanner:
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        node: ["22.6.0", "24"]
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: actions/setup-node@v7
+        with:
+          node-version: ${{ matrix.node }}
+
+      - name: Scanner finds real code and skips installed skills
+        run: |
+          fixture="$(mktemp -d)"
+          mkdir -p "$fixture/src" "$fixture/.agents/skills"
+          cp -R skills/jev-scout "$fixture/.agents/skills/"
+          cat > "$fixture/src/router.ts" <<'EOF'
+          export async function classifyTicket(text: string) {
+            if (text.includes("refund") || text.includes("urgent")) return "priority";
+            return (await client.chat.completions.create({ messages: [{ role: "user", content: text }] })).choices[0];
+          }
+          EOF
+          node --experimental-strip-types skills/jev-scout/scripts/repo_signals.ts --root "$fixture" --format json > signals.json
+          jq -e '[.top_files[].path] == ["src/router.ts"]' signals.json

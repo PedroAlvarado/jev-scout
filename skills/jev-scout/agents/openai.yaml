@@ -1,0 +1,4 @@
+interface:
+  display_name: "Jev Scout"
+  short_description: "Find and rank high-value Jev decision opportunities in a repo"
+  default_prompt: "Use $jev-scout to map where Jev decision models would pay off in this repository."
