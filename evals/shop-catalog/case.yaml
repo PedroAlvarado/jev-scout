@@ -1,0 +1,14 @@
+schema_version: "1.1"
+name: shop-catalog
+description: Python marketplace catalog with an LLM categorizer, a banned-terms regex patched by fix commits, embedding search with a fixed top_k and a price re-sort, a first-match variant picker, review summarization and commission math.
+expected_outcome: A Jev Opportunity Map covering all three families, citing files and the git fix history, naming the non-fits, and writing nothing outside the reply.
+tags: [discovery, python]
+runs: 3
+context:
+  scaffold_script: fixture.sh
+execution:
+  max_turns: 80
+  timeout_seconds: 1800
+  allowed_tools: [Read, Glob, Grep, Bash, Skill, WebFetch, Write, Edit]
+  prompt: |
+    Can Jev help this marketplace codebase? Look for the highest-value places to use it. Don't modify any files.

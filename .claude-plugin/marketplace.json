@@ -8,7 +8,7 @@
   "plugins": [
     {
       "name": "jev-scout",
-      "description": "Reads a repository and ranks where fast, typed Jev judgments would pay off, with decision contracts and a shadow-mode experiment for each.",
+      "description": "Reads a repository and finds where fast, typed Jev judgments would pay off - replacing model calls and brittle rules, checking implicit decisions, and new capabilities - with decision contracts and a shadow-mode experiment for each.",
       "source": "./"
     }
   ]

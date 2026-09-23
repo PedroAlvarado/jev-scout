@@ -1,6 +1,6 @@
 # Jev opportunity patterns
 
-Use these as lenses while inspecting a repository. They are starting points, not a checklist to force onto every codebase.
+Use these as lenses while inspecting a repository. They are starting points, not a checklist to force onto every codebase. Patterns 1-10 mostly produce **substitution** and **augmentation** candidates; pattern 11 and `novel-applications.md` produce **new capabilities**. The augmentation signals at the end list decisions that are made implicitly today. For current examples by industry and task, read the live use-case map at `https://docs.typesafe.ai/concepts/use-case-map.md`.
 
 ## 1. Replace a generative router
 
@@ -114,3 +114,18 @@ Do not stop at substitution. Look for behaviors a product may not currently atte
 - make context selection a continuous background operation inside an agent loop
 
 The business case for these can exceed simple model-cost savings.
+
+## Augmentation signals
+
+These are decisions the code makes implicitly. The scanner flags several of them (`first_match`, `fixed_cutoff`, `human_review`); others only show up in the value chain.
+
+| Signal in code | Implicit decision | Jev shape | Guardrail |
+| --- | --- | --- | --- |
+| `results[0]`, `.find(...)`, `FIRST_ORDERED_NODE_TYPE`, `LIMIT 1` on a fuzzy match | "The first match is the right one" | Choice over the matches + `none_matches`, called only when there are two or more | Candidate recall is the ceiling; keep the single-match path deterministic |
+| `TOP_K = 5`, `.slice(0, 10)`, a similarity threshold | "Nothing past rank k matters" | Noul or comparable Score per candidate over a wider pool | Code keeps the context budget and the final order |
+| The same order, message or option for every user | "One size fits all" | Choice or Score per user from their own state | Explicit user choices always win |
+| An action or tool call that is sent and never checked | "It worked" | Noul: did the result match the intent? | Failures re-observe or escalate; they never invent a new action |
+| A check that runs only at publish, checkout or the end of a run | "Problems can wait" | Nouls for named defects on every step | Keep defect definitions narrow; measure false alarms |
+| A random sample or the first page is reviewed | "The rest is fine" | Noul per item over everything, people see the uncertain slice | Sampled audits continue as ground truth |
+| Every item goes to a review queue | "A person must look at all of them" | Noul or Score to sort the queue; clear cases fast-tracked only after shadowing | Policy, money and permissions stay with code and people |
+| A silent fallback (`?? "other"`, `except: pass`, a default label) | "When unsure, pretend" | An explicit `unknown` answer with a review path | Log the unknowns; never coerce them into an action |

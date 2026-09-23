@@ -75,14 +75,34 @@ Most valuable principles:
 - use first-class typed tools when available; keep tool contracts bounded and locally validated
 - keep skill instructions compact and push deeper implementation detail into references
 
+## TypeSafe documentation
+
+Source: https://docs.typesafe.ai (index at https://docs.typesafe.ai/llms.txt)
+
+Most valuable principles:
+
+- the use-case map's categories - background automation without a human co-pilot, real-time decisions, map-reduce over large datasets, universal verification of other AI, and harness engineering - are lenses for new capabilities, not only for substitution
+- decision shapes (classification, detection, scoring, routing, search, retrieval, ranking, verification, feature extraction, structured extraction) map onto Choice, Noul and Score
+- read the live docs and the closest cookbook; treat demo thresholds and vendor figures as things to evaluate
+
+## Lessons from live runs
+
+A first run of version 0.1 on a large production monorepo found real opportunities but almost all of them were substitutions of existing model calls, and its keyword scanner ranked generated type files and documentation above real decision code. Version 0.2 responds with:
+
+- a value chain before the code scan, so decisions made by defaults, people or nobody are visible
+- a decision inventory from the scanner instead of keyword counts, with git fix history and heuristic churn as evidence
+- three families of candidates, a minimum of anchored new-capability ideas, and ranking within families so new capabilities are not crowded out
+- a challenge step that reads design docs and domain rules before recommending a change
+- explicit boundaries: analysis only, nothing written outside the report, evidence from the local checkout
+
 ## Resulting design stance
 
 The skill therefore prioritizes this sequence:
 
-1. understand the product and business value surface
-2. discover repo-grounded semantic decision hotspots
-3. filter by Jev fit and business leverage
-4. design typed decision contracts
-5. compose with deterministic code and explicit fallback
-6. validate in replay/shadow mode
-7. activate only where measured behavior supports it
+1. map the system and its value chain, including unmade decisions
+2. build a decision inventory grounded in code and git history
+3. generate substitution, augmentation and new-capability candidates
+4. filter by Jev fit, then challenge against evidence, deliberate design and domain rules
+5. rank with stated estimates, within and across families
+6. design typed decision contracts, composed with deterministic code and explicit fallback
+7. validate in replay and shadow mode, and activate only where measured behavior supports it

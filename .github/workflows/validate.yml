@@ -21,6 +21,9 @@ jobs:
           jq -e '.name == "jev-scout" and (.version | test("^[0-9]+\\.[0-9]+\\.[0-9]+$"))' .claude-plugin/plugin.json
           jq -e '.plugins | length == 1 and .[0].name == "jev-scout" and .[0].source == "./"' .claude-plugin/marketplace.json
 
+      - name: The plugin version has a changelog entry
+        run: grep -q "^## $(jq -r .version .claude-plugin/plugin.json) " CHANGELOG.md
+
       - name: The skill folder carries the same license as the repository
         run: cmp LICENSE skills/jev-scout/LICENSE
 
@@ -36,16 +39,5 @@ jobs:
         with:
           node-version: ${{ matrix.node }}
 
-      - name: Scanner finds real code and skips installed skills
-        run: |
-          fixture="$(mktemp -d)"
-          mkdir -p "$fixture/src" "$fixture/.agents/skills"
-          cp -R skills/jev-scout "$fixture/.agents/skills/"
-          cat > "$fixture/src/router.ts" <<'EOF'
-          export async function classifyTicket(text: string) {
-            if (text.includes("refund") || text.includes("urgent")) return "priority";
-            return (await client.chat.completions.create({ messages: [{ role: "user", content: text }] })).choices[0];
-          }
-          EOF
-          node --experimental-strip-types skills/jev-scout/scripts/repo_signals.ts --root "$fixture" --format json > signals.json
-          jq -e '[.top_files[].path] == ["src/router.ts"]' signals.json
+      - name: Scanner finds the planted decisions in the eval fixtures
+        run: node --test evals/scanner.test.mjs

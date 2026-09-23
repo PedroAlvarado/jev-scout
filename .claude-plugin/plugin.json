@@ -1,7 +1,7 @@
 {
   "name": "jev-scout",
-  "version": "0.1.0",
-  "description": "Reads a repository and ranks where fast, typed Jev judgments would pay off, with decision contracts and a shadow-mode experiment for each.",
+  "version": "0.2.0",
+  "description": "Reads a repository and finds where fast, typed Jev judgments would pay off - replacing model calls and brittle rules, checking implicit decisions, and new capabilities - with decision contracts and a shadow-mode experiment for each.",
   "author": {
     "name": "Pedro Alvarado",
     "url": "https://github.com/PedroAlvarado"
@@ -9,5 +9,11 @@
   "homepage": "https://github.com/PedroAlvarado/jev-scout",
   "repository": "https://github.com/PedroAlvarado/jev-scout",
   "license": "MIT",
-  "keywords": ["jev", "typesafe", "agent-skills", "code-analysis", "llm-cost"]
+  "keywords": [
+    "jev",
+    "typesafe",
+    "agent-skills",
+    "code-analysis",
+    "llm-cost"
+  ]
 }

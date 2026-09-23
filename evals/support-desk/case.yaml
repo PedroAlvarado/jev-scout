@@ -1,0 +1,14 @@
+schema_version: "1.1"
+name: support-desk
+description: TypeScript support desk with an LLM router, a keyword heuristic patched by fix commits, first-match article suggestions, a manual refund queue, reply drafting and SLA math.
+expected_outcome: A Jev Opportunity Map covering all three families, citing files and the git fix history, naming the non-fits, and writing nothing outside the reply.
+tags: [discovery, typescript]
+runs: 3
+context:
+  scaffold_script: fixture.sh
+execution:
+  max_turns: 80
+  timeout_seconds: 1800
+  allowed_tools: [Read, Glob, Grep, Bash, Skill, WebFetch, Write, Edit]
+  prompt: |
+    Where could Jev decision models create value in this repository? This is analysis only: don't change anything.
