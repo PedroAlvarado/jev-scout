@@ -14,7 +14,7 @@ node --test evals/scanner.test.mjs      # Node.js 22.6 or later
 
 ### In GitHub Actions (recommended)
 
-The [`eval` workflow](../.github/workflows/eval.yml) runs the suite on a clean Ubuntu runner with Bash granted, so the skill's scanner and git history are exercised. It pins the Claude Code version, the agent model and the judge model so scores stay comparable, runs each case three times per arm by default, installs and tests the sandbox before any model call is paid for, stops at a cost ceiling, and fails when a case scores below the threshold. The job summary shows each case's score with and without the skill and every grader's pass count; the JSON result, the HTML report and each run's transcript are uploaded as an artifact.
+The [`eval` workflow](../.github/workflows/eval.yml) runs the suite on a clean Ubuntu runner with Bash granted, so the skill's scanner and git history are exercised. It pins the Claude Code version, the agent model and the judge model so scores stay comparable, runs each case once per arm by default to keep costs down, installs and tests the sandbox before any model call is paid for, stops at a cost ceiling, and fails when a case scores below the threshold. The job summary shows each case's score with and without the skill and every grader's pass count; the JSON result, the HTML report and each run's transcript are uploaded as an artifact.
 
 It runs only when started by hand, because every run is a paid model call. Once, add a repository secret for the model provider. Through [OpenRouter](https://openrouter.ai/docs/cookbook/coding-agents/claude-code-integration):
 
@@ -32,11 +32,11 @@ To call Anthropic directly instead, set `ANTHROPIC_API_KEY`; when both secrets e
 Then start a run, from the Actions tab or the command line:
 
 ```bash
-gh workflow run eval.yml -R PedroAlvarado/jev-scout -f runs=3
+gh workflow run eval.yml -R PedroAlvarado/jev-scout
 gh run watch -R PedroAlvarado/jev-scout
 ```
 
-Inputs: `runs`, `case` (a name glob), `model` and `judge_model` (empty picks Claude Opus 5.5 and Claude Haiku 4.5 in the provider's naming), `max_cost_usd` and `threshold`. Three runs of both cases, with the no-plugin baseline, cost roughly $5-10 at the default models; set `max_cost_usd` to what you are willing to spend.
+Inputs: `runs`, `case` (a name glob), `model` and `judge_model` (empty picks Claude Opus 5.5 and Claude Haiku 4.5 in the provider's naming), `max_cost_usd` and `threshold`. One run of both cases, with the no-plugin baseline, costs roughly $4 at the default models by Claude Code's list-price estimate, about 40% of it grading; three runs cost about $11. Pass `-f runs=3` only when you need steadier scores, and set `max_cost_usd` to what you are willing to spend.
 
 ### On your machine
 
@@ -56,15 +56,18 @@ claude plugin eval . --scaffold --allow-tools Bash "WebFetch(domain:docs.typesaf
 
 | Fixture | Substitution | Augmentation | New-capability anchors | Not a fit |
 | --- | --- | --- | --- | --- |
-| `support-desk` (TypeScript) | LLM ticket router matched by prefix (`src/triage/router.ts`); keyword urgency rule with three fixes and a revert (`src/triage/urgency.ts`) | first search hit behind a fixed `TOP_K` (`src/kb/suggest.ts`); every refund to a manual review queue (`src/refunds/approve.ts`) | ticket bodies, the `csat_submitted` event, drafted replies | reply drafting, SLA date math, refund amount policy |
+| `support-desk` (TypeScript) | LLM ticket router matched by prefix (`src/triage/router.ts`); keyword urgency rule with three fixes and a revert (`src/triage/urgency.ts`) | first search hit behind a fixed `TOP_K` (`src/kb/suggest.ts`); every refund to a manual review queue (`src/refunds/approve.ts`) | ticket bodies, the `csat_submitted` event, drafted replies | reply drafting, SLA date math, refund decisions (an ADR keeps them with people) |
 | `shop-catalog` (Python) | LLM categorizer parsing JSON (`catalog/categorize.py`); banned-terms regex with three fixes (`catalog/moderation.py`) | fixed `TOP_K` then a re-sort by price (`search/rank.py`); first substring match for variants (`search/variants.py`) | listing titles and descriptions, review text, the disputes metric | commission math, review summaries |
 
-Each case grades: the skill fired; the substitution; the heuristic with its fix history as evidence; an augmentation; an anchored new capability (weighted double); the non-fits; and that nothing was edited, created, committed or filed.
+Each case grades: the skill fired; the substitution; the heuristic with its fix history as evidence; an augmentation; an anchored new capability (weighted double); the non-fits; and that nothing was edited, created, committed or filed (checked on the commands the agent ran, not on text it read).
+
+`support-desk` also tests what the skill adds beyond spotting planted code, because a strong model finds those alone: an `AGENTS.md` that tells agents to file issues and write `REPORT.md` (the skill writes nothing outside its report), an ADR that keeps refund decisions with people (the challenge step must respect it), and intake volume in the README and `src/config/intake.ts` (the ranking must derive a per-day estimate).
 
 ### Results
 
 | Date | Version | Setup | With skill | Without | Notes |
 | --- | --- | --- | --- | --- | --- |
+| 2026-09-23 | 0.2.1 | CI, Bash, 3 runs per arm, OpenRouter | 0.96, 1.00 | 0.52, 0.93 | First full run: every run used the scanner, git history and the live docs. $11.07 list-price estimate. Without the skill, Opus 5.5 scored 0.93 on support-desk, so that fixture was given the ADR, volume and AGENTS.md tests. |
 | 2026-09-23 | 0.2.1 | no Bash, 1 run per arm | 1.00, 1.00 | 0.56, 0.78 | Same setup after the Opus 5.5 prompting audit: no regression, $1.40 instead of $1.99; the tightened new-capability grader now fails a no-plugin run. |
 | 2026-09-23 | 0.2.0 | no Bash, 1 run per arm | 1.00, 1.00 | 0.67, 0.78 | Scanner and `git log` not exercised; the skill read commit subjects from `.git/logs/HEAD`. Before this run, the new-capability grader also passed without the plugin, and Write/Edit were not granted; both have since been tightened. |
 

@@ -1,6 +1,7 @@
 ---
-type: regex
-target: trace
-pattern: "gh (issue|pr) (create|comment|edit)|git commit|git push"
-match: not_contains
+type: tool_used
+tool: Bash
+input_match: "gh (issue|pr) (create|comment|edit)|git (commit|push)|(>|tee) *REPORT\\.md"
+min: 0
+max: 0
 ---

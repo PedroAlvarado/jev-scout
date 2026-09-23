@@ -3,7 +3,7 @@ name: shop-catalog
 description: Python marketplace catalog with an LLM categorizer, a banned-terms regex patched by fix commits, embedding search with a fixed top_k and a price re-sort, a first-match variant picker, review summarization and commission math.
 expected_outcome: A Jev Opportunity Map covering all three families, citing files and the git fix history, naming the non-fits, and writing nothing outside the reply.
 tags: [discovery, python]
-runs: 3
+runs: 1
 context:
   scaffold_script: fixture.sh
 execution:

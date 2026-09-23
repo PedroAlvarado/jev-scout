@@ -3,7 +3,7 @@ name: support-desk
 description: TypeScript support desk with an LLM router, a keyword heuristic patched by fix commits, first-match article suggestions, a manual refund queue, reply drafting and SLA math.
 expected_outcome: A Jev Opportunity Map covering all three families, citing files and the git fix history, naming the non-fits, and writing nothing outside the reply.
 tags: [discovery, typescript]
-runs: 3
+runs: 1
 context:
   scaffold_script: fixture.sh
 execution:

@@ -10,8 +10,8 @@ on:
   workflow_dispatch:
     inputs:
       runs:
-        description: Runs per case and arm; more runs give steadier scores
-        default: "3"
+        description: Runs per case and arm; 1 keeps costs down, more give steadier scores
+        default: "1"
       case:
         description: Case name glob; empty runs every case
         default: ""
@@ -99,7 +99,7 @@ jobs:
 
       - name: Install Claude Code
         run: |
-          npm install -g "@anthropic-ai/claude-code@${CLAUDE_CODE_VERSION}"
+          npm install -g --allow-scripts=@anthropic-ai/claude-code "@anthropic-ai/claude-code@${CLAUDE_CODE_VERSION}"
           claude --version
 
       - name: Run the eval suite

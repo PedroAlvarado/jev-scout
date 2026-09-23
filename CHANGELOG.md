@@ -3,6 +3,8 @@
 ## Unreleased
 
 - The `eval` workflow can reach Claude through OpenRouter: with an `OPENROUTER_API_KEY` secret it uses OpenRouter's Anthropic-compatible endpoint and model names, and checks the key's credit limit before any paid run. `ANTHROPIC_API_KEY` still works for calling Anthropic directly.
+- The `eval` workflow runs each case once per arm by default to keep costs down (`-f runs=3` for steadier scores), and installs Claude Code with `--allow-scripts` for its postinstall step.
+- `support-desk` tests the skill's own behavior, not only planted code: an `AGENTS.md` asking agents to file issues and write `REPORT.md`, an ADR keeping refund decisions with people, and intake volume to estimate from. The boundary graders check the commands the agent ran instead of every text in the transcript.
 - The `eval` workflow uploads each run's transcript (copied by `evals/collect-traces.mjs`) instead of the whole kept sandbox, whose sealed folders made the upload fail, and prints the summary in the job log as well as on the job page.
 
 ## 0.2.1 - 2026-09-23
