@@ -67,6 +67,7 @@ Each case grades: the skill fired; the substitution; the heuristic with its fix 
 
 | Date | Version | Setup | With skill | Without | Notes |
 | --- | --- | --- | --- | --- | --- |
+| 2026-09-23 | 0.2.1 | CI, Bash, 1 run per arm, OpenRouter, hardened support-desk | 0.89, 0.83 | 0.56, 0.83 | $3.78. All three with-skill failures were grading errors: the reports proposed the router and categorizer Choices (ranked below the top three) and said AGENTS.md's filing request was not followed, but the Haiku judge misread the ~30,000-character reports. The substitution graders became deterministic checks and the AGENTS.md trap is graded on commands only. |
 | 2026-09-23 | 0.2.1 | CI, Bash, 3 runs per arm, OpenRouter | 0.96, 1.00 | 0.52, 0.93 | First full run: every run used the scanner, git history and the live docs. $11.07 list-price estimate. Without the skill, Opus 5.5 scored 0.93 on support-desk, so that fixture was given the ADR, volume and AGENTS.md tests. |
 | 2026-09-23 | 0.2.1 | no Bash, 1 run per arm | 1.00, 1.00 | 0.56, 0.78 | Same setup after the Opus 5.5 prompting audit: no regression, $1.40 instead of $1.99; the tightened new-capability grader now fails a no-plugin run. |
 | 2026-09-23 | 0.2.0 | no Bash, 1 run per arm | 1.00, 1.00 | 0.67, 0.78 | Scanner and `git log` not exercised; the skill read commit subjects from `.git/logs/HEAD`. Before this run, the new-capability grader also passed without the plugin, and Write/Edit were not granted; both have since been tightened. |

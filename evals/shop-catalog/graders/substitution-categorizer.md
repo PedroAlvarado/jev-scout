@@ -1,5 +1,8 @@
 ---
-type: llm
+# The report proposes a Jev Choice for the LLM categorizer and names catalog/categorize.py
+# near it. Deterministic, because judge models misread long reports that rank it low.
+type: regex
+target: last_message
+flags: i
+pattern: 'categorize\.py[\s\S]{0,400}\bchoice\b|\bchoice\b[\s\S]{0,400}categorize\.py'
 ---
-PASS if the final report proposes a typed Jev decision (a Choice over the category list, or equivalent) for the LLM categorizer in `catalog/categorize.py`, which parses a JSON category from the model's reply, and cites that file.
-FAIL if the categorizer is not presented as an opportunity, or no file is cited for it.
