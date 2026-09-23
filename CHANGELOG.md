@@ -3,6 +3,7 @@
 ## Unreleased
 
 - The `eval` workflow can reach Claude through OpenRouter: with an `OPENROUTER_API_KEY` secret it uses OpenRouter's Anthropic-compatible endpoint and model names, and checks the key's credit limit before any paid run. `ANTHROPIC_API_KEY` still works for calling Anthropic directly.
+- The `eval` workflow uploads each run's transcript (copied by `evals/collect-traces.mjs`) instead of the whole kept sandbox, whose sealed folders made the upload fail, and prints the summary in the job log as well as on the job page.
 
 ## 0.2.1 - 2026-09-23
 

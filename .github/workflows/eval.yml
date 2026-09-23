@@ -156,13 +156,16 @@ jobs:
           RUNS: ${{ inputs.runs }}
         run: |
           if [ -f evals/results/ci.json ]; then
+            # The summary goes to the job page and to this log, so `gh run view --log` shows it too.
             {
               echo "## Jev Scout eval"
               echo
               echo "Provider $PROVIDER, agent model \`$RESOLVED_MODEL\`, judge \`$RESOLVED_JUDGE_MODEL\`, $RUNS runs per case and arm, Claude Code $CLAUDE_CODE_VERSION."
               echo
               node evals/summarize.mjs evals/results/ci.json
-            } >> "$GITHUB_STEP_SUMMARY"
+            } | tee -a "$GITHUB_STEP_SUMMARY"
+            # Only each run's transcript: the rest of a kept run holds sealed folders that no one can read.
+            node evals/collect-traces.mjs evals/results/ci.json evals/results/traces
           else
             echo "No results were written; see the Run the eval suite step." >> "$GITHUB_STEP_SUMMARY"
           fi
@@ -171,8 +174,6 @@ jobs:
         if: always()
         with:
           name: eval-results-${{ github.run_id }}
-          path: |
-            evals/results/
-            ${{ runner.temp }}/eval/
+          path: evals/results/
           if-no-files-found: ignore
           retention-days: 30
