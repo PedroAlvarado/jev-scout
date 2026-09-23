@@ -31,7 +31,7 @@ Rank with numbers you can defend. Every estimate names its source; anything unkn
 
 ## Scores
 
-Score each term 0-5:
+Score each dimension 0-5. The scores explain the ranking; they are not added up:
 
 | Term | 0 | 5 |
 | --- | --- | --- |
@@ -45,13 +45,7 @@ Score each term 0-5:
 | risk_penalty | wrong answer is harmless | wrong answer is irreversible, corrupts data, or touches money or safety |
 | data_sensitivity | none | regulated |
 
-```text
-priority = business_leverage + decision_frequency + current_friction + jev_fit
-         + integration_ease + evalability + evidence_strength
-         - risk_penalty - data_sensitivity
-```
-
-The priority is a ranking aid, not measured return on investment. A high score never hides weak evidence: a candidate with no concrete location in the repository cannot be a top pick.
+Rank by judgment, with the scores as the stated reasons. A weak evidence score or a high risk or sensitivity penalty can outweigh several strong scores, and a candidate with no concrete location in the repository cannot be a top pick. The ranking is a judgment about where to look first, not measured return on investment.
 
 ## Choosing the top three
 
@@ -62,4 +56,4 @@ The priority is a ranking aid, not measured return on investment. A high score n
 
 ## Recommended first move
 
-Choose the experiment with the best mix of value, fit, a clear integration point, labels on hand, low data sensitivity and low rollout risk - often not the highest priority. Say why.
+Choose the experiment with the best mix of value, fit, a clear integration point, labels on hand, low data sensitivity and low rollout risk - often not the top-ranked opportunity. Say why.

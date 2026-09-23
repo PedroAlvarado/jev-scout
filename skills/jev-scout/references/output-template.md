@@ -8,11 +8,11 @@ Use this structure for a discovery request. Adapt labels when the repository mak
 
 One short paragraph: where Jev has the strongest leverage in this system and why, including the best new capability.
 
-| Rank | Opportunity | Family | Business lever | Repo evidence | Jev shape | Volume/day | Priority |
-| ---: | --- | --- | --- | --- | --- | --- | ---: |
-| 1 | ... | substitution / augmentation / new capability | ... | `path:line` | Choice + Noul | ~1k (derivation) | 24 |
+| Rank | Opportunity | Family | Business lever | Repo evidence | Jev shape | Volume/day | Why this rank |
+| ---: | --- | --- | --- | --- | --- | --- | --- |
+| 1 | ... | substitution / augmentation / new capability | ... | `path:line` | Choice + Noul | ~1k (derivation) | the two or three scores that decided it |
 
-The priority is a ranking aid, not measured return on investment.
+The ranking is a judgment about where to look first, not measured return on investment.
 
 ## Value map
 

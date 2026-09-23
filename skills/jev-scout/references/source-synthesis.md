@@ -85,16 +85,6 @@ Most valuable principles:
 - decision shapes (classification, detection, scoring, routing, search, retrieval, ranking, verification, feature extraction, structured extraction) map onto Choice, Noul and Score
 - read the live docs and the closest cookbook; treat demo thresholds and vendor figures as things to evaluate
 
-## Lessons from live runs
-
-A first run of version 0.1 on a large production monorepo found real opportunities but almost all of them were substitutions of existing model calls, and its keyword scanner ranked generated type files and documentation above real decision code. Version 0.2 responds with:
-
-- a value chain before the code scan, so decisions made by defaults, people or nobody are visible
-- a decision inventory from the scanner instead of keyword counts, with git fix history and heuristic churn as evidence
-- three families of candidates, a minimum of anchored new-capability ideas, and ranking within families so new capabilities are not crowded out
-- a challenge step that reads design docs and domain rules before recommending a change
-- explicit boundaries: analysis only, nothing written outside the report, evidence from the local checkout
-
 ## Resulting design stance
 
 The skill therefore prioritizes this sequence:
