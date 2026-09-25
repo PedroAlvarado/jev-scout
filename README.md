@@ -84,7 +84,11 @@ node --experimental-strip-types skills/jev-scout/scripts/repo_signals.ts --root 
 bun skills/jev-scout/scripts/repo_signals.ts --root /path/to/repo --format json
 ```
 
-It scans the files git knows about (respecting `.gitignore`), and skips dependency and build folders, generated files, test files and any folder that holds a `SKILL.md`, so installed agent skills never show up as candidates.
+It scans the files git knows about (respecting `.gitignore`), and skips dependency, build and build-state folders, generated and bundled files, test files and any folder that holds a `SKILL.md`, so installed agent skills never show up as candidates. `--include` and `--exclude` globs scope it to part of a monorepo:
+
+```bash
+node --experimental-strip-types skills/jev-scout/scripts/repo_signals.ts --root . --include 'services/billing/**' --exclude '**/prototypes/**'
+```
 
 ## Evals
 

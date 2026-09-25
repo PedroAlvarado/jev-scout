@@ -3,7 +3,7 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import { execFileSync } from "node:child_process";
-import { mkdtempSync, rmSync } from "node:fs";
+import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
@@ -85,6 +85,42 @@ test("shop-catalog: inventory and history for a Python service", (t) => {
   assert.ok(kindsOf(result, "search/rank.py").fixed_cutoff, "rank.py: fixed_cutoff");
   assert.ok(kindsOf(result, "search/variants.py").first_match, "variants.py: first_match");
   assert.equal(result.fix_hotspots.find((h) => h.path === "catalog/moderation.py")?.fix_commits, 3);
+});
+
+test("free-text rules, raw HTTP calls, build folders, bundles and globs", (t) => {
+  const dir = mkdtempSync(join(tmpdir(), "jev-scout-rules-"));
+  t.after(() => rmSync(dir, { recursive: true, force: true }));
+  const files = {
+    "src/signals.ts": 'export const vague = (tasks) => tasks.filter((task) => !/done when|verification/i.test(task.description ?? ""));\n',
+    "src/check.ts": "export function sameOption(actual: string, target: string) {\n  const a = actual.toLowerCase();\n  const t = target.toLowerCase();\n  return a.includes(t) || t.includes(a);\n}\n",
+    "src/format.ts": "export const isEmail = (email: string) => /^[^\\s@]+@[^\\s@]+$/.test(email);\n",
+    "src/raw.ts": 'export const ask = (text: string) => fetch("https://api.openai.com/v1/chat/completions", { method: "POST", body: JSON.stringify({ model: "m", messages: [{ role: "user", content: text }] }) });\n',
+    "py/tasks.py": 'import re\n\ndef has_done_when(task):\n    return bool(re.search(r"done when|acceptance criteria", task.description))\n\ndef same(a, t):\n    return t in a or a in t\n',
+    ".alchemy/state.ts": 'generateText({ prompt: "x" });\n',
+    "public/app.js": 'generateText({ prompt: "x" });\n//# sourceMappingURL=app.js.map\n',
+    "assets/chunk.js": "var a=1;".repeat(1000) + 'generateText({ prompt: "x" });\n',
+  };
+  for (const [path, text] of Object.entries(files)) {
+    mkdirSync(join(dir, dirname(path)), { recursive: true });
+    writeFileSync(join(dir, path), text);
+  }
+
+  const result = scan(dir, "--no-git");
+  const kinds = (path) => kindsOf(result, path);
+  assert.ok(kinds("src/signals.ts").semantic_heuristic, "regex tested on a task description");
+  assert.ok(kinds("src/check.ts").semantic_heuristic, "two-way includes");
+  assert.equal(kinds("src/format.ts").semantic_heuristic, undefined, "a format check is not a semantic heuristic");
+  assert.ok(kinds("src/raw.ts").model_call, "raw HTTP call to a model provider");
+  assert.ok((kinds("py/tasks.py").semantic_heuristic ?? 0) >= 2, "Python regex on free text and two-way `in`");
+  const paths = Object.values(result.hits).flat().map((h) => h.path);
+  assert.ok(!paths.some((p) => p.startsWith(".alchemy/")), "build-state folder skipped");
+  assert.ok(!paths.some((p) => p.startsWith("public/") || p.startsWith("assets/")), "bundles skipped");
+  assert.equal(result.skipped.generated, 2);
+
+  const narrowed = scan(dir, "--no-git", "--include", "src/**", "--exclude", "**/raw.ts");
+  const narrowedPaths = Object.values(narrowed.hits).flat().map((h) => h.path);
+  assert.ok(narrowedPaths.length > 0 && narrowedPaths.every((p) => p.startsWith("src/") && p !== "src/raw.ts"));
+  assert.ok(narrowed.skipped.excluded >= 4);
 });
 
 test("rejects bad arguments", () => {

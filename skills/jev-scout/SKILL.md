@@ -37,7 +37,7 @@ Substitutions are the easiest to see and usually the smallest. The biggest value
 8. Design decision contracts, composition and shadow experiments for the top picks.
 9. Deliver the report.
 
-**Large repositories.** After step 1, split the repository into systems (services, apps, packages) and run steps 2-5 per system, then merge at step 7. If the host can run parallel agents, one per system works well; otherwise go system by system. The report's **Coverage notes** say what was and was not examined.
+**Large repositories.** After step 1, split the repository into systems (services, apps, packages) and run steps 2-5 per system, then merge at step 7. The scanner's `--include` and `--exclude` globs scope it to one system, for example `--include 'services/billing/**' --exclude '**/prototypes/**'`. If the host can run parallel agents, one per system works well; otherwise go system by system. The report's **Coverage notes** say what was and was not examined.
 
 ## Host compatibility
 
@@ -76,7 +76,7 @@ npx --no-install tsx "$SKILL_ROOT/scripts/repo_signals.ts" --root . --format mar
 
 If the host does not expose the skill path, locate this skill's `SKILL.md` from the active skill context and use its parent directory. Never hard-code a Claude Code or Codex skill directory.
 
-The scanner lists the files git knows about (or walks the directory outside git), scans source code only, and skips dependency and build folders, generated files, test files and every folder that holds a `SKILL.md`. It reports, with file and line: model calls, prompt text that asks for a label or strict JSON, model output parsed into labels, keyword and regex rules standing in for meaning, first-match selection, fixed top-k and thresholds, manual review steps, TODOs asking for smarter behavior, and functions named for a judgment. With git it adds **fix hotspots** (files most touched by fix and revert commits) and change counts. Use `--format json` for machine-readable output.
+The scanner lists the files git knows about (or walks the directory outside git), scans source code only, and skips dependency, build and build-state folders, generated and bundled files, test files and every folder that holds a `SKILL.md`. It reports, with file and line: model calls (SDK calls, chat payloads and provider endpoints, never mentions in comments), prompt text that asks for a label or strict JSON, model output parsed into labels, keyword and regex rules standing in for meaning (including regexes tested on free-text fields and two-way `includes` checks), first-match selection, fixed top-k and thresholds, manual review steps, TODOs asking for smarter behavior, and functions named for a judgment. With git it adds **fix hotspots** (files most touched by fix and revert commits) and change counts. Use `--format json` for machine-readable output.
 
 The scanner finds leads, not proof. Read the strongest candidates in context and record each bounded decision you confirm:
 

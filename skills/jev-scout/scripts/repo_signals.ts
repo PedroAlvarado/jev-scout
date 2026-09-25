@@ -11,9 +11,11 @@
  *
  * - Inside a git work tree it scans `git ls-files` (tracked plus untracked files that
  *   are not ignored); elsewhere it walks the directory.
- * - It scans source code only, and skips dependency and build folders, generated
- *   files, lockfiles, minified bundles, and every folder that holds a SKILL.md
- *   (installed agent skills describe AI behavior, so they would outrank real code).
+ * - It scans source code only, and skips dependency, build and build-state folders,
+ *   generated files, minified or bundled output (recognized by name or by content),
+ *   and every folder that holds a SKILL.md (installed agent skills describe AI
+ *   behavior, so they would outrank real code).
+ * - `--include` and `--exclude` globs narrow the scan, for one system of a monorepo.
  * - Hit counts are never capped; only the listed examples are.
  * - With git, it also reads recent commit subjects to find the files most touched by
  *   fix and revert commits, and how often each file changes.
@@ -58,7 +60,7 @@ type ScanResult = {
   root: string;
   file_source: "git" | "walk";
   files_scanned: number;
-  skipped: { generated: number; tests: number; skill_folders: number; too_large: number; not_code: number };
+  skipped: { excluded: number; generated: number; tests: number; skill_folders: number; too_large: number; not_code: number };
   git: { used: boolean; commits_read: number; shallow: boolean; note?: string };
   kind_counts: Partial<Record<Kind, number>>;
   top_files: TopFile[];
@@ -75,6 +77,8 @@ type Options = {
   maxHitsPerKind: number;
   gitDepth: number;
   useGit: boolean;
+  include: RegExp[];
+  exclude: RegExp[];
 };
 
 const KIND_INFO: Record<Kind, { weight: number; label: string }> = {
@@ -98,6 +102,9 @@ const SKIP_DIRS = new Set([
   "node_modules", "vendor", "third_party", "dist", "build", "out", "coverage", "target",
   ".venv", "venv", "__pycache__", ".cache", ".pytest_cache", ".mypy_cache", ".gradle",
   "tmp", "temp", "Pods", "DerivedData",
+  // build and deploy state written by tools, never source
+  ".alchemy", ".wrangler", ".vercel", ".netlify", ".output", ".serverless", ".terraform",
+  ".expo", ".parcel-cache", ".angular",
 ]);
 
 const CODE_EXTENSIONS = new Set([
@@ -119,17 +126,39 @@ const TEST_PATH = /(^|\/)(tests?|__tests__|spec|specs|e2e|testdata|fixtures?)\/|
 
 const GENERATED_MARKER = /@generated|DO NOT EDIT|auto-?generated/i;
 
+/** Built output that kept a source extension: a source map reference, or very long lines. */
+function isBundled(text: string): boolean {
+  if (/[#@] sourceMappingURL=/.test(text.slice(-4000))) return true;
+  const head = text.slice(0, 20_000);
+  const lineCount = head.split("\n").length;
+  return head.length > 5000 && head.length / lineCount > 400;
+}
+
+// Free-text fields whose contents a rule is judging.
+const TEXT_FIELD = "(?:text|body|message|msg|content|title|description|desc|subject|comment|query|input|note|reason|summary|transcript|review|feedback|email|label|answer|reply|response|prompt|page)";
+// `/done when|verify/i.test(task.description)`: a regex literal tested against free text
+const REGEX_TEST_ON_TEXT = new RegExp(String.raw`\/(?<pattern>(?:\\.|[^/\n\\])+)\/[gimsuy]*\.test\(\s*[\w.?]*\b` + TEXT_FIELD + String.raw`\w*`, "i");
+// `re.search(r"done when|acceptance", task.description)`
+const PY_RE_ON_TEXT = new RegExp(String.raw`\bre\.(?:search|match|fullmatch|findall)\(\s*r?(["'])(?<pattern>.+?)\1\s*,\s*[\w.]*\b` + TEXT_FIELD + String.raw`\w*`, "i");
+/** A pattern that contains a real word, not only character classes: meaning, not format. */
+const hasWord = (pattern: string) => /[a-z]{4,}/i.test(pattern.replace(/\\[a-z]/gi, ""));
+
 const FIX_SUBJECT = /\b(fix(es|ed)?|bug(fix)?|revert(s|ed)?|hotfix|regression|wrong|incorrect|broken|misclassif\w*|false (positive|negative)s?|edge case)\b/i;
 
 // One entry per kind; a line may hit several kinds.
 const MATCHERS: Record<Kind, (line: string) => boolean> = {
+  // Comment lines never count as calls: naming a model or a provider in prose is not calling it.
   model_call: (line) =>
+    !/^\s*(\/\/|\/\*|\*|#|--)/.test(line) && (
     /\b(generateText|generateObject|streamText|streamObject)\s*\(/.test(line) ||
     /\b(messages|chat\.completions|completions|responses)\.(create|stream|parse)\s*\(/.test(line) ||
     /\.AI\.run\s*\(|\b(invoke_model|invokeModel|converse|ConverseCommand|InvokeModelCommand)\b/.test(line) ||
     /\b(createChatCompletion|chatCompletion|ChatCompletion\.create|generate_content|generateContent)\s*\(/.test(line) ||
     /\bollama\.(chat|generate)\s*\(|\bnew ToolLoopAgent\s*\(|\bdspy\.(Predict|ChainOfThought)\b|\bLLMChain\b/.test(line) ||
-    /\b(llm|lm|chatModel|chat_model|chatClient|chain|LLM)\w*\.(generate|invoke|ainvoke|complete|predict|prompt|chat)\s*\(/.test(line),
+    /\b(llm|lm|chatModel|chat_model|chatClient|chain|LLM)\w*\.(generate|invoke|ainvoke|complete|predict|prompt|chat)\s*\(/.test(line) ||
+    // raw HTTP: a chat payload, or a model provider's endpoint
+    /\bmessages["']?\s*:\s*\[\s*\{\s*["']?role["']?\s*:/.test(line) ||
+    /(api\.openai\.com|api\.anthropic\.com|openrouter\.ai\/api|generativelanguage\.googleapis\.com|api\.mistral\.ai|api\.groq\.com|api\.together\.xyz|\/v1\/chat\/completions\b)/.test(line)),
   prompt_literal: (line) =>
     /(answer with (exactly )?(one|a single) (word|label|number|letter)|respond (only )?with (one|a single|exactly|json|yes|true|the)|reply (only )?(with )?(strict )?json|return (only|strictly) (valid )?json|return (a )?valid json|output (only|exactly|a single)|classify (this|the|each)|categori[sz]e (this|the)|one of the following|yes or no|true or false|on a scale (of|from)|you are (a|an|the) [\w -]{0,40}(judge|classifier|router|grader|moderator|reviewer|evaluator|detector))/i.test(line),
   output_coercion: (line) =>
@@ -144,8 +173,14 @@ const MATCHERS: Record<Kind, (line: string) => boolean> = {
       /\.(toLowerCase|lower)\(\)\.(includes|contains|startsWith|endsWith|match)\(/.test(line) ||
       /\bre\.(search|match|findall|fullmatch)\(|\w*(_RE|Regex|REGEX|Pattern|PATTERN)\.(test|search|match|matcher)\(/.test(line);
     const literalWord = /\.(includes|contains|startsWith|endsWith)\(\s*["'][a-z][a-z' ]{2,}["']\s*\)/.test(line);
+    const regexOnText = REGEX_TEST_ON_TEXT.exec(line) ?? PY_RE_ON_TEXT.exec(line);
     return (
       (textMatch && (semanticWord || literalWord)) ||
+      (regexOnText?.groups?.pattern !== undefined && hasWord(regexOnText.groups.pattern)) ||
+      // two-way containment standing in for "means the same": `a.includes(t) || t.includes(a)`
+      // (includes only: DOM code uses `a.contains(b) || b.contains(a)` for nodes, not text)
+      /(\w+)\.includes\((\w+)\)[^;\n]*\b\2\.includes\(\1\)/.test(line) ||
+      /\b(\w+) in (\w+)\b[^\n]*\b\2 in \1\b/.test(line) ||
       // word lists: `URGENT_KEYWORDS = [...]`, `banned_words = {...}`, `SPAM_RE = re.compile(...)`
       /\b(\w*(KEYWORDS?|STOP_?WORDS|PHRASES|SYNONYMS|BLOCK_?LIST|DENY_?LIST|BAD_?WORDS|PROFANITY|BANNED\w*|TRIGGER_?WORDS)|keywords|stop_?words|phrases|synonyms|trigger_?words|banned_?words)\b(\s*:\s*[\w<>\[\], ]+)?\s*[:=]\s*(\[|\{|new Set\(|set\(|frozenset\(|re\.compile\(|new RegExp\(|\/|listOf\(|setOf\(|arrayOf\(|List\.of\(|Set\.of\()/i.test(line) ||
       // a regex of three or more lowercase words: /\b(refund|chargeback|dispute)\b/
@@ -178,6 +213,26 @@ function parseInteger(value: string | undefined, flag: string): number {
   return parsed;
 }
 
+/** A path glob: `**` crosses folders, `*` and `?` stay inside one; a plain name matches a folder or a file. */
+function globToRegExp(glob: string): RegExp {
+  let g = glob.replace(/^\.\//, "");
+  if (g.endsWith("/")) g += "**";
+  const escape = (text: string) => text.replace(/[.+^${}()|[\]\\]/g, "\\$&");
+  if (!/[*?]/.test(g)) return new RegExp(`^${escape(g)}(?:/.*)?$`);
+  let out = "";
+  for (let i = 0; i < g.length; i += 1) {
+    const ch = g[i]!;
+    if (ch === "*" && g[i + 1] === "*") {
+      const slash = g[i + 2] === "/";
+      out += slash ? "(?:.*/)?" : ".*";
+      i += slash ? 2 : 1;
+    } else if (ch === "*") out += "[^/]*";
+    else if (ch === "?") out += "[^/]";
+    else out += escape(ch);
+  }
+  return new RegExp(`^${out}$`);
+}
+
 function parseArgs(argv: string[]): Options {
   const options: Options = {
     root: ".",
@@ -187,6 +242,8 @@ function parseArgs(argv: string[]): Options {
     maxHitsPerKind: 25,
     gitDepth: 2000,
     useGit: true,
+    include: [],
+    exclude: [],
   };
 
   for (let i = 0; i < argv.length; i += 1) {
@@ -217,6 +274,13 @@ function parseArgs(argv: string[]): Options {
       case "--no-git":
         options.useGit = false;
         break;
+      case "--include":
+      case "--exclude": {
+        const glob = argv[++i];
+        if (!glob) throw new Error(`Missing value for ${arg}`);
+        (arg === "--include" ? options.include : options.exclude).push(globToRegExp(glob));
+        break;
+      }
       case "-h":
       case "--help":
         printHelp();
@@ -239,7 +303,9 @@ function printHelp(): void {
     `  --max-bytes <n>               Skip files larger than this (default: 1000000)\n` +
     `  --max-hits-per-kind <n>       Example lines listed per kind; counts are never capped (default: 25)\n` +
     `  --git-depth <n>               Recent commits read for fix and change history (default: 2000)\n` +
-    `  --no-git                      Walk the directory and skip git history\n`);
+    `  --no-git                      Walk the directory and skip git history\n` +
+    `  --include <glob>              Scan only matching paths; repeatable (e.g. 'services/billing/**')\n` +
+    `  --exclude <glob>              Leave out matching paths; repeatable (e.g. '**/prototypes/**')\n`);
 }
 
 function git(root: string, args: string[]): string | null {
@@ -333,7 +399,9 @@ function scan(options: Options): ScanResult {
 
   const { files: candidates, source } = listCandidates(root, options.useGit);
   const skills = skillFolders(candidates);
-  const skipped = { generated: 0, tests: 0, skill_folders: 0, too_large: 0, not_code: 0 };
+  const skipped = { excluded: 0, generated: 0, tests: 0, skill_folders: 0, too_large: 0, not_code: 0 };
+  const selected = (rel: string) =>
+    (options.include.length === 0 || options.include.some((re) => re.test(rel))) && !options.exclude.some((re) => re.test(rel));
 
   const counts = new Map<string, Map<Kind, number>>();
   const hits = new Map<Kind, Hit[]>();
@@ -342,6 +410,10 @@ function scan(options: Options): ScanResult {
 
   for (const rel of candidates.sort()) {
     if (scanned >= options.maxFiles) break;
+    if (!selected(rel)) {
+      skipped.excluded += 1;
+      continue;
+    }
     if (skills.some((folder) => rel.startsWith(folder))) {
       skipped.skill_folders += 1;
       continue;
@@ -372,7 +444,7 @@ function scan(options: Options): ScanResult {
     } catch {
       continue;
     }
-    if (GENERATED_MARKER.test(text.slice(0, 600))) {
+    if (GENERATED_MARKER.test(text.slice(0, 600)) || isBundled(text)) {
       skipped.generated += 1;
       continue;
     }
@@ -431,7 +503,7 @@ function scan(options: Options): ScanResult {
   }
 
   const fixHotspots: FixHotspot[] = [...history.fixes.entries()]
-    .filter(([path]) => CODE_EXTENSIONS.has(extname(path).toLowerCase()) && !GENERATED_PATH.test(path) && !TEST_PATH.test(path) && !inSkippedDir(path))
+    .filter(([path]) => selected(path) && CODE_EXTENSIONS.has(extname(path).toLowerCase()) && !GENERATED_PATH.test(path) && !TEST_PATH.test(path) && !inSkippedDir(path))
     .sort((a, b) => b[1] - a[1] || a[0].localeCompare(b[0]))
     .slice(0, 20)
     .map(([path, fixes]) => ({ path, fix_commits: fixes, commits: history.commits.get(path) ?? 0 }));
@@ -461,7 +533,8 @@ function renderMarkdown(data: ScanResult): string {
     "# Decision inventory signals",
     "",
     `Scanned **${data.files_scanned}** source files (list from ${data.file_source === "git" ? "`git ls-files`" : "a directory walk"}). ` +
-      `Skipped: ${data.skipped.tests} test files (read them as evidence, not as candidates), ${data.skipped.generated} generated, ${data.skipped.skill_folders} in installed skill folders, ${data.skipped.too_large} too large.`,
+      `Skipped: ${data.skipped.tests} test files (read them as evidence, not as candidates), ${data.skipped.generated} generated, ${data.skipped.skill_folders} in installed skill folders, ${data.skipped.too_large} too large` +
+      (data.skipped.excluded ? `, ${data.skipped.excluded} outside --include/--exclude.` : "."),
     "",
     data.git.used
       ? `Git: read the last ${data.git.commits_read} commits${data.git.shallow ? " (shallow clone: history is partial)" : ""}.`

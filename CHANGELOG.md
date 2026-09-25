@@ -1,7 +1,11 @@
 # Changelog
 
-## Unreleased
+## 0.2.2 - 2026-09-24
 
+- Scanner: a regex literal tested on a free-text field (`/done when|verify/i.test(task.description)`, and Python's `re.search(r"...", text)`) counts as a semantic heuristic when the pattern contains a word, so format checks such as email patterns do not; so does two-way containment (`a.includes(t) || t.includes(a)`, `t in a or a in t`), a common stand-in for "means the same".
+- Scanner: model calls are also found as raw HTTP (a chat `messages: [{ role: ... }]` payload, or a model provider's endpoint), and comment lines never count as calls.
+- Scanner: build-state folders (`.alchemy`, `.wrangler`, `.vercel`, `.netlify`, `.output`, `.serverless`, `.terraform` and others) are skipped even outside git, and built files that kept a source extension are recognized by a source-map reference or very long lines.
+- Scanner: `--include` and `--exclude` globs (repeatable) scope a scan and its fix history to part of a monorepo.
 - The `eval` workflow can reach Claude through OpenRouter: with an `OPENROUTER_API_KEY` secret it uses OpenRouter's Anthropic-compatible endpoint and model names, and checks the key's credit limit before any paid run. `ANTHROPIC_API_KEY` still works for calling Anthropic directly.
 - The `eval` workflow runs each case once per arm by default to keep costs down (`-f runs=3` for steadier scores), and installs Claude Code with `--allow-scripts` for its postinstall step.
 - `support-desk` tests the skill's own behavior, not only planted code: an `AGENTS.md` asking agents to file issues and write `REPORT.md`, an ADR keeping refund decisions with people, and intake volume to estimate from. The boundary graders check the commands the agent ran instead of every text in the transcript, and the substitution graders are deterministic checks for a Choice proposed next to the file, because the Haiku judge misread long reports.
